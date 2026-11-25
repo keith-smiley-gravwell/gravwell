@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH)="x86"?>
+<?define Program_Files="ProgramFilesFolder"?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+<?define Program_Files="ProgramFiles64Folder"?>
+<?else ?>
+<?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif ?>
+<!--
+  Gravwell Windows ingester: replaces the Windows Events and Windows File Follow ingesters.
+  Installing this package migrates and removes both legacy products.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product Id="*" UpgradeCode="8baca3ce-76c4-48ca-b4e3-b129a0bcfcb7" Name="!(loc.Product_Name)" Version="$(var.Version)" Manufacturer="!(loc.Product_Manufacturer)" Language="1033">
+    <Package InstallerVersion="500" Compressed="yes" Comments="!(loc.Package_Comments)" InstallScope="perMachine" />
+    <Icon Id="gravwell.ico" SourceFile="gravwell.ico" />
+    <WixVariable Id="WixUIDialogBmp" Value="background.png" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.png" />
+    <WixVariable Id="WixUIExclamationIco" Value="gravwell.ico" />
+    <WixVariable Id="WixUIInfoIco" Value="gravwell.ico" />
+    <WixVariable Id="WixUINewIco" Value="gravwell.ico" />
+    <WixVariable Id="WixUIUpIco" Value="gravwell.ico" />
+    <Property Id="ARPPRODUCTICON" Value="gravwell.ico" />
+    <Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
+
+    <!-- Remove older versions of this product, and both legacy products, AFTER install so legacy configs can be migrated first -->
+    <MajorUpgrade Schedule="afterInstallFinalize" DowngradeErrorMessage="!(loc.Package_NewerVersionDetected)" AllowSameVersionUpgrades="yes" />
+    <!-- Legacy Windows Events ingester -->
+    <Upgrade Id="7c775ec8-a978-11e9-9c98-efcc6506c320">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" OnlyDetect="no" Property="LEGACY_WINEVENTS_FOUND" />
+    </Upgrade>
+    <!-- Legacy Windows File Follow ingester -->
+    <Upgrade Id="bedb975e-b218-11e9-873c-435282de337c">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" OnlyDetect="no" Property="LEGACY_FILEFOLLOW_FOUND" />
+    </Upgrade>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.Program_Files)">
+        <Directory Id="BASEDIR" Name="gravwell">
+          <Component Id="component_stopLegacyServices" Guid="079aa62a-b3cc-4031-b3dc-c5c5065f50f9">
+            <CreateFolder />
+            <!-- Stop and remove the legacy services before migrating so their bookmarks and state are flushed.
+                 The legacy products themselves are removed after InstallFinalize. -->
+            <ServiceControl Id="LegacyEventsService" Name="GravwellEvents Service" Stop="install" Remove="install" Wait="yes" />
+            <ServiceControl Id="LegacyEventsServiceOld" Name="GravwellEvents" Stop="install" Remove="install" Wait="yes" />
+            <ServiceControl Id="LegacyFileFollowService" Name="GravwellFileFollower Service" Stop="install" Remove="install" Wait="yes" />
+            <ServiceControl Id="LegacyFileFollowServiceOld" Name="GravwellFileFollow" Stop="install" Remove="install" Wait="yes" />
+          </Component>
+          <Directory Id="INSTALLDIR" Name="windows">
+            <Component Id="component_gravwell_windows_exe" Guid="19492d2a-35ec-4155-8b88-b7c5f0d3307f">
+              <File Id="file_gravwell_windows.exe" Source="gravwell_windows.exe" Name="gravwell_windows.exe" KeyPath="yes" />
+              <ServiceInstall Vital="yes" ErrorControl="normal" Type="ownProcess" Name="!(loc.Service_Name)" Id="GravwellWindowsService" DisplayName="!(loc.Service_DisplayName)" Description="!(loc.Service_Description)" Start="auto" />
+              <ServiceControl Id="GravwellWindowsService" Remove="uninstall" Name="!(loc.Service_Name)" Start="install" Stop="both" Wait="yes" />
+              <util:EventSource Log="Application" Name="!(loc.Service_Name)" EventMessageFile="[%SystemRoot]\System32\EventCreate.exe" SupportsErrors="yes" SupportsWarnings="yes" SupportsInformationals="yes" />
+            </Component>
+            <Component Id="component_gravwell_ico" Guid="cada0149-ccd9-4bad-a912-4435db2fd3be">
+              <File Id="file_gravwell.ico" Source="gravwell.ico" />
+            </Component>
+<?ifdef ELAM_DRIVER?>
+            <!-- Optional: only built when an MVI-signed ELAM driver is available, see ingesters/windows/THREAT_INTELLIGENCE.md -->
+            <Component Id="component_elam_driver" Guid="74629267-1215-4da3-8a50-dca9a586600b">
+              <File Id="file_gravwell_elam.sys" Source="$(var.ELAM_DRIVER)" Name="gravwell_elam.sys" KeyPath="yes" />
+            </Component>
+<?endif?>
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="CommonAppDataFolder" Name="ProgramData">
+        <Directory Id="ProgramDataGravwell" Name="gravwell">
+          <Directory Id="CONFIGDIR" Name="windows">
+            <Component Id="component_configFolder" Guid="9eeb2d4a-1196-4e08-ae3d-0055e7e78b86">
+              <CreateFolder />
+            </Component>
+            <Directory Id="CONFIGOVERLAYDIR" Name="windows.conf.d">
+              <Component Id="component_configOverlayFolder" Guid="d8d1b75d-d7dd-4b41-a14c-2dc6340484b2">
+                <CreateFolder />
+              </Component>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- Configuration properties -->
+    <Property Id="CONFIGFILE" Secure="yes" Value="0" />
+    <Property Id="PURGE" Secure="yes" Value="0" />
+    <Property Id="CONFIG_INGEST_SECRET" Secure="yes" Value="IngestSecrets" />
+    <Property Id="CONFIG_CLEARTEXT_BACKEND_TARGET" Secure="yes" Value="127.0.1.1:4023" />
+    <Property Id="CONFIG_LOG_LEVEL" Secure="yes" Value="INFO" />
+    <Property Id="CONFIG_ENABLE_SYSMON" Secure="yes" />
+    <Property Id="CONFIG_ENABLE_FORWARDED" Secure="yes" />
+    <Property Id="CONFIG_ENABLE_FOLLOWER" Secure="yes" />
+    <Property Id="CONFIG_WATCHED_DIRECTORY" Secure="yes" Value="C:\\a dir with logs\\" />
+    <Property Id="CONFIG_FILE_FILTER" Secure="yes" Value="*.log" />
+    <Property Id="CONFIG_TAG_NAME" Secure="yes" Value="windows_logs" />
+
+    <!-- Existing unified config -->
+    <Property Id="EXISTING_CONFIGCFG_PATH" Secure="yes">
+      <DirectorySearch Id="CheckConfigFile" Path="[CommonAppDataFolder]">
+        <DirectorySearch Id="CheckConfigFile2" Path="gravwell">
+          <DirectorySearch Id="CheckConfigFile3" Path="windows">
+            <FileSearch Name="windows.cfg" />
+          </DirectorySearch>
+        </DirectorySearch>
+      </DirectorySearch>
+    </Property>
+    <!-- Legacy configs that will be migrated, these may exist even if the legacy product was removed -->
+    <Property Id="EXISTING_LEGACY_EVENTS_CFG" Secure="yes">
+      <DirectorySearch Id="CheckLegacyEvents" Path="[CommonAppDataFolder]">
+        <DirectorySearch Id="CheckLegacyEvents2" Path="gravwell">
+          <DirectorySearch Id="CheckLegacyEvents3" Path="eventlog">
+            <FileSearch Name="config.cfg" />
+          </DirectorySearch>
+        </DirectorySearch>
+      </DirectorySearch>
+    </Property>
+    <Property Id="EXISTING_LEGACY_FILEFOLLOW_CFG" Secure="yes">
+      <DirectorySearch Id="CheckLegacyFF" Path="[CommonAppDataFolder]">
+        <DirectorySearch Id="CheckLegacyFF2" Path="gravwell">
+          <DirectorySearch Id="CheckLegacyFF3" Path="filefollow">
+            <FileSearch Name="file_follow.cfg" />
+          </DirectorySearch>
+        </DirectorySearch>
+      </DirectorySearch>
+    </Property>
+    <!-- HAVE_CONFIG = 1 when no configuration dialog should be shown -->
+    <Property Id="HAVE_CONFIG" Value="0" />
+    <SetProperty Id="HAVE_CONFIG" Value="1" After="AppSearch" Sequence="both">
+      <![CDATA[EXISTING_CONFIGCFG_PATH OR EXISTING_LEGACY_EVENTS_CFG OR EXISTING_LEGACY_FILEFOLLOW_CFG]]>
+    </SetProperty>
+
+    <!-- Merge legacy configs (runs before the legacy products are removed) -->
+    <SetProperty Id="MigrateLegacyConfig" Value="&quot;[#file_gravwell_windows.exe]&quot; -migrate-config" After="CostFinalize" />
+    <CustomAction Id="MigrateLegacyConfig" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="check" Impersonate="no" />
+
+    <SetProperty Id="CopyConfig" Value="&quot;[SystemFolder]cmd.exe&quot; /c echo f | xcopy &quot;[CONFIGFILE]&quot; &quot;[CONFIGDIR]windows.cfg&quot; /Y /Q /R" After="CostFinalize" />
+    <CustomAction Id="CopyConfig" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="check" Impersonate="no" />
+    <SetProperty Id="PurgeConfig" Value="&quot;[SystemFolder]cmd.exe&quot; /c rmdir /S /Q &quot;[CONFIGDIR]&quot;" After="CostFinalize" />
+    <CustomAction Id="PurgeConfig" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="ignore" Impersonate="no" />
+
+    <!-- Generate config file (only new installations without any existing config) -->
+    <Binary Id="createConfigFile.vbs" SourceFile="createConfigFile.vbs" />
+    <CustomAction Id="GenerateConfigCfg" VBScriptCall="" BinaryKey="createConfigFile.vbs" Return="check" Execute="deferred" Impersonate="no" />
+    <!-- Secret must be last since it can potentially include the separator (illegal for other values) -->
+    <CustomAction Property="GenerateConfigCfg" Id="GenerateConfigCfgValues" Value="[CONFIGDIR]|[CONFIG_LOG_LEVEL]|[CONFIG_CLEARTEXT_BACKEND_TARGET]|[CONFIG_ENABLE_SYSMON]|[CONFIG_ENABLE_FORWARDED]|[CONFIG_ENABLE_FOLLOWER]|[CONFIG_TAG_NAME]|[CONFIG_FILE_FILTER]|[CONFIG_WATCHED_DIRECTORY]|[CONFIG_INGEST_SECRET]" />
+
+<?ifdef ELAM_DRIVER?>
+    <!-- Register the ELAM certificate info and mark the service as antimalware PPL -->
+    <SetProperty Id="InstallELAM" Value="&quot;[#file_gravwell_windows.exe]&quot; -install-elam &quot;[#file_gravwell_elam.sys]&quot;" After="CostFinalize" />
+    <CustomAction Id="InstallELAM" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="check" Impersonate="no" />
+    <SetProperty Id="SetProtected" Value="&quot;[#file_gravwell_windows.exe]&quot; -set-protected" After="CostFinalize" />
+    <CustomAction Id="SetProtected" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="check" Impersonate="no" />
+<?endif?>
+
+    <Binary Id="customActions.vbs" SourceFile="customActions.vbs" />
+    <Property Id="UninstallQuestion_Message" Value="!(loc.UninstallQuestion_Message)" />
+    <Property Id="UninstallQuestion_Title" Value="!(loc.UninstallQuestion_Title)" />
+    <CustomAction Id="QueryPurgeProgramData" VBScriptCall="QueryPurgeProgramData" BinaryKey="customActions.vbs" Return="check" Execute="immediate" />
+    <CustomAction Id="Validate_CONFIG_INGEST_SECRET" VBScriptCall="Validate_CONFIG_INGEST_SECRET" BinaryKey="customActions.vbs" />
+    <CustomAction Id="Validate_CONFIG_CLEARTEXT_BACKEND_TARGET" VBScriptCall="Validate_CONFIG_CLEARTEXT_BACKEND_TARGET" BinaryKey="customActions.vbs" />
+    <CustomAction Id="Validate_CONFIG_WATCHER" VBScriptCall="Validate_CONFIG_WATCHER" BinaryKey="customActions.vbs" />
+    <CustomAction Id="Select_WATCHED_DIRECTORY" VBScriptCall="Select_WATCHED_DIRECTORY" BinaryKey="customActions.vbs" />
+
+    <InstallExecuteSequence>
+      <!-- the service must not start before its configuration exists -->
+      <Custom Action="MigrateLegacyConfig" After="InstallFiles">NOT Installed AND NOT REMOVE AND NOT EXISTING_CONFIGCFG_PATH AND (EXISTING_LEGACY_EVENTS_CFG OR EXISTING_LEGACY_FILEFOLLOW_CFG)</Custom>
+      <Custom Action="GenerateConfigCfgValues" After="MigrateLegacyConfig" />
+      <Custom Action="GenerateConfigCfg" After="GenerateConfigCfgValues">NOT Installed AND NOT REMOVE AND HAVE_CONFIG = 0 AND CONFIGFILE = 0</Custom>
+      <Custom Action="CopyConfig" After="GenerateConfigCfg">NOT Installed AND NOT REMOVE AND NOT CONFIGFILE = 0</Custom>
+<?ifdef ELAM_DRIVER?>
+      <Custom Action="InstallELAM" After="CopyConfig">NOT REMOVE</Custom>
+      <Custom Action="SetProtected" After="InstallServices">NOT REMOVE</Custom>
+<?endif?>
+      <Custom Action="QueryPurgeProgramData" Before="FindRelatedProducts">NOT UPGRADINGPRODUCTCODE AND REMOVE AND PURGE = 0 AND NOT UILevel=2</Custom>
+      <Custom Action="PurgeConfig" After="DeleteServices">REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND PURGE = 1</Custom>
+    </InstallExecuteSequence>
+
+    <Feature Id="DefaultFeature" Level="1">
+      <ComponentRef Id="component_stopLegacyServices" />
+      <ComponentRef Id="component_gravwell_windows_exe" />
+      <ComponentRef Id="component_gravwell_ico" />
+      <ComponentRef Id="component_configFolder" />
+      <ComponentRef Id="component_configOverlayFolder" />
+<?ifdef ELAM_DRIVER?>
+      <ComponentRef Id="component_elam_driver" />
+<?endif?>
+    </Feature>
+    <UI>
+      <UIRef Id="WixUI_HK" />
+    </UI>
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <CustomActionRef Id="WixBroadcastEnvironmentChange" />
+  </Product>
+</Wix>

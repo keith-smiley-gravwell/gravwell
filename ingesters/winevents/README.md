@@ -1,5 +1,11 @@
 # Gravwell Windows Events Ingester
 
+> **Deprecated on Windows:** this ingester has been replaced by the unified
+> [Gravwell Windows ingester](../windows/README.md), which hosts Event Log
+> channels, file followers and ETW sessions in a single service. Installing the
+> new MSI migrates this ingester's configuration, bookmark and state and removes
+> this ingester. This package will be removed in a future release.
+
 The Gravwell Windows events ingester is designed to run as a system service and collect Events from the Windows Event log.  The ingesters supports Windows 7 through Windows 10 and any modern Windows server distribution.  Both 32 and 64 bit builds are possible, but only the 64bit build is officially supported.
 
 ## Building the application

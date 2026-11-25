@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us"
+  xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="Product_Name" Overridable="yes">gravwell windows ingester</String>
+  <String Id="Product_Manufacturer" Overridable="yes">Gravwell Inc</String>
+  <String Id="Package_Comments" Overridable="yes">Windows Installer Package</String>
+  <String Id="Package_NewerVersionDetected" Overridable="yes">A newer version of this software is already installed.</String>
+  <String Id="Service_Name" Overridable="yes">GravwellWindows</String>
+  <String Id="Service_DisplayName" Overridable="yes">Gravwell Windows Ingester</String>
+  <String Id="Service_Description" Overridable="yes">Gravwell ingester for Windows Event Logs, files and ETW</String>
+  <String Id="ConfigurationDlg_Header" Overridable="yes">Configuration</String>
+  <String Id="ConfigurationDlg_Description" Overridable="yes">Update values for default configuration</String>
+  <String Id="ConfigurationDlg_Title" Overridable="yes">[ProductName] Configuration</String>
+  <String Id="ConfigurationDlg_IncludeSysmon" Overridable="yes">Include Sysmon:</String>
+  <String Id="ConfigurationDlg_IncludeForwarded" Overridable="yes">Include Forwarded Events:</String>
+  <String Id="ConfigurationDlg_EnableFollower" Overridable="yes">Follow files in a directory:</String>
+  <String Id="ConfigurationDlg_IngestSecretLabel" Overridable="yes">Ingest secret:</String>
+  <String Id="ConfigurationDlg_CleartextBackendTarget" Overridable="yes">Cleartext TCP Target:</String>
+  <String Id="ConfigurationDlg_WatchedDirectoryLabel" Overridable="yes">Watched directory:</String>
+  <String Id="ConfigurationDlg_TagNameLabel" Overridable="yes">File tag name:</String>
+  <String Id="ConfigurationDlg_FileFilterLabel" Overridable="yes">File Filter:</String>
+  <String Id="ConfigurationDlg_LogLevel_OFF" Overridable="yes">Off</String>
+  <String Id="ConfigurationDlg_LogLevel_INFO" Overridable="yes">Information</String>
+  <String Id="ConfigurationDlg_LogLevel_WARN" Overridable="yes">Warning</String>
+  <String Id="ConfigurationDlg_LogLevel_ERROR" Overridable="yes">Error</String>
+  <String Id="ConfigurationDlg_LogLevel" Overridable="yes">Internal log level:</String>
+  <String Id="UninstallQuestion_Title" Overridable="yes">Remove configuration data?</String>
+  <String Id="UninstallQuestion_Message" Overridable="yes">Remove stored configuration properties?</String>
+  <String Id="InvalidIngestSecretDialog_Title" Overridable="yes">Invalid value of Ingest Secret</String>
+  <String Id="InvalidIngestSecretDialog_Message" Overridable="yes">
+Value of Ingest Secret:
+• Must contain at least one non-whitespace character
+• Cannot contain any of following characters:
+  ` &quot; '
+  </String>
+  <String Id="InvalidCleartextBackendTargetDialog_Title" Overridable="yes">Invalid value of Cleartext Backend Target</String>
+  <String Id="InvalidCleartextBackendTargetDialog_Message" Overridable="yes">
+Value of Cleartext Backend Target must be one of:
+• Qualified domain name with optional port number
+• IP address with optional port number
+  </String>
+  <String Id="InvalidWatchedDirectoryDialog_Title" Overridable="yes">Invalid or missing Watched Directory and/or tag name</String>
+  <String Id="InvalidWatchedDirectoryDialog_Message" Overridable="yes">
+Watched Directory must be an existing valid folder.
+Tag name must be a valid non-empty tag name.
+File Filter must be a valid glob pattern, use * to match all files.
+  </String>
+</WixLocalization>

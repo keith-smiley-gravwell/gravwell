@@ -1,0 +1,8 @@
+*.exe
+*.wixobj
+*.msi
+*.ico
+/.vscode
+*.txt
+*.sys
+*.cer
